@@ -377,14 +377,15 @@ local function checkTargets()
     local foundTargets = {}
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA('TextLabel') and obj.Name == 'DisplayName' then
-            local txt = string.lower(obj.LocalizedText or '')
+            -- ✅ Ưu tiên lấy Text trước, nếu rỗng mới dùng LocalizedText
+            local txt = string.lower(obj.Text or obj.LocalizedText or "")
 
-            if string.upper(obj.LocalizedText or '') == 'FUSING' then
+            if string.upper(obj.Text or obj.LocalizedText or "") == 'FUSING' then
                 continue
             end
 
             for _, name in ipairs(targets) do
-                if string.find(txt, string.lower(name)) then
+                if txt:find(string.lower(name)) then
                     local parent = obj.Parent
                     local isStolen = false
                     local generation = 'N/A'
@@ -392,7 +393,7 @@ local function checkTargets()
                     if parent then
                         local stolenLabel = parent:FindFirstChild('Stolen')
                         if stolenLabel and stolenLabel:IsA('TextLabel') then
-                            local stolenText = string.upper(stolenLabel.LocalizedText or '')
+                            local stolenText = string.upper(stolenLabel.Text or stolenLabel.LocalizedText or '')
                             if stolenText == 'FUSING' then
                                 isStolen = true
                             end
@@ -401,7 +402,7 @@ local function checkTargets()
                         for _, child in ipairs(parent:GetChildren()) do
                             if child:IsA('TextLabel') then
                                 local childName = string.lower(child.Name or '')
-                                local childText = child.LocalizedText or ''
+                                local childText = child.Text or child.LocalizedText or ''
 
                                 if childName:find('generation') or childName:find('gen') then
                                     generation = childText ~= '' and childText or generation
