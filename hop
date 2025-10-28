@@ -1,22 +1,36 @@
 -- CT_WhiteScanner_V2.lua
 -- 1) Fix lag  2) White screen + timer  3) Ẩn lỗi teleport
 -- 4) Target list  5) Gửi webhook (giữ nguyên logic bạn đưa)
--- 🧱 TẮT LỖI CORE / LOG KHÔNG QUAN TRỌNG
+-- 🧱 CHẶN TOÀN BỘ LOG LỖI CORE (bao gồm TutorialArrow / FUEController)
 pcall(function()
     local LogService = game:GetService("LogService")
-    LogService.MessageOut:Connect(function(msg, msgType)
+
+    local function filterLog(msg)
         msg = tostring(msg)
-        if msg:find("is not a valid member of Model") 
+        if msg:find("TutorialArrow") 
         or msg:find("FUEController") 
-        or msg:find("TutorialArrow") then
-            return -- bỏ qua các log lỗi này
+        or msg:find("is not a valid member of Model") then
+            return true
         end
-        if msgType == Enum.MessageType.MessageError then
-            warn("[⚠️ Error]", msg)
-        elseif msgType == Enum.MessageType.MessageWarning then
-            print("[⚠️ Warning]", msg)
-        end
-    end)
+        return false
+    end
+
+    -- Chặn cả khi log service chưa khởi tạo hoàn chỉnh
+    local hookConsole = function()
+        LogService.MessageOut:Connect(function(msg, msgType)
+            if filterLog(msg) then return end
+            if msgType == Enum.MessageType.MessageError then
+                warn("[⚠️ Error]", msg)
+            elseif msgType == Enum.MessageType.MessageWarning then
+                print("[⚠️ Warning]", msg)
+            end
+        end)
+    end
+
+    -- Hook sớm nhất có thể
+    task.spawn(hookConsole)
+    -- Hook lại sau 5s (trường hợp Roblox reload LogService)
+    task.delay(5, hookConsole)
 end)
 
 repeat task.wait() until game:IsLoaded()
