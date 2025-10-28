@@ -240,155 +240,130 @@ local targets = {
     'Chillin Chili','Los Combinasionas','Los Hotspotsitos','La Supreme Combinasion',
     'Los 67','La Secret Combinasion','Burguro And Fryuro','La Spooky Grande','Los Mobilis',
     'Eviledon','Spooky and Pumpky','Mieteteira Bicicleteira','Los Spooky Combinasionas','Meowl',
-    'Los Matteos','Bisonte Giuppitere','La Vacca Saturno Saturnita','Torrtuginni Dragonfrutini',
-    'Los Tralaleritos','Los Spyderinis','Las Tralaleritas','Job Job Job Sahur','Noo my examine',
-    'Las Vaquitas Saturnitas','To to to Sahur',
-
 }
 
 --==================================================
 -- 5) GỬI WEBHOOK (giữ NGUYÊN logic bạn đưa)
 --==================================================
 local urls = {
-    low = {
-        'https://discord.com/api/webhooks/1432680719393624135/CbeXxo7BT00ScPG8sBddhMkxCBBWzL431RvFclSqXZm1OXaxurOUWA-vUqt8iG1zc_wE',
-        'https://discord.com/api/webhooks/1426862131856412692/J-zZnc1SmoilRJLLU7gACiwH2No_kUfywubRLkAU2XfsLdFAjgmolpTTCk6RbtSE8VJg'
-    },
-    high = {
-        'https://discord.com/api/webhooks/1422467805558865942/lYqd7SPFk5nftbg_L9hrmJ4cAHgnXe7jJbw9H0ti0EQAaiMKh2eGWtpCfCTBZc8pKbzO',
-        'https://discord.com/api/webhooks/1426864245143900202/bnRk09C0FuWUKrsx6HFakrgl5UC6ihPHWIrxRknE4VKDH7z-PAzWUvcLXrDwL4LsO9Yy'
-    }
+    'https://discordapp.com/api/webhooks/1422467805558865942/lYqd7SPFk5nftbg_L9hrmJ4cAHgnXe7jJbw9H0ti0EQAaiMKh2eGWtpCfCTBZc8pKbzO',
+    'https://discord.com/api/webhooks/1426864245143900202/bnRk09C0FuWUKrsx6HFakrgl5UC6ihPHWIrxRknE4VKDH7z-PAzWUvcLXrDwL4LsO9Yy'
 }
-
+-- alias cho một số executor (không đụng vào payload/logic của bạn)
 local http_request = http_request or request or (syn and syn.request)
+
 local lastJobIdSent = nil
-
--- 🧩 Hàm chuẩn hóa generation để nhận cả G10 / 10m / gen 10 / generation 9...
-local function parseGen(gText)
-    if not gText or gText == "" then return nil end
-    local s = string.lower(gText)
-    local m = s:match("(%d+)%s*m%+?") or s:match("g(%d+)") or s:match("gen%s*(%d+)")
-        or s:match("generation%s*(%d+)") or s:match("tier%s*(%d+)")
-    if m then return tonumber(m) end
-    local any = s:match("(%d+)")
-    if any then return tonumber(any) end
-    return nil
-end
-
 local function sendWebhook(foundTargets)
-    if not foundTargets or #foundTargets == 0 then return end
+    if not foundTargets or #foundTargets == 0 then
+        return
+    end
 
     local placeId = game.PlaceId
     local jobId = game.JobId
-    if jobId == lastJobIdSent then return end
+
+    if jobId == lastJobIdSent then
+        return
+    end
     lastJobIdSent = jobId
 
-    local joinScript = "game:GetService('TeleportService'):TeleportToPlaceInstance("..placeId..", '"..jobId.."', game.Players.LocalPlayer)"
-    local joinLink = 'https://chillihub1.github.io/chillihub-joiner/?placeId='..placeId..'&gameInstanceId='..jobId
+    local joinScript = "game:GetService('TeleportService'):TeleportToPlaceInstance("
+        .. placeId
+        .. ", '"
+        .. jobId
+        .. "', game.Players.LocalPlayer)"
+    local joinLink = 'https://chillihub1.github.io/chillihub-joiner/?placeId='
+        .. placeId
+        .. '&gameInstanceId='
+        .. jobId
 
-    ----------------------------------------------------------
-    -- 🎯 TÁCH NHÓM CHUẨN (1–9M vs 10M+ hoàn toàn riêng biệt)
-    ----------------------------------------------------------
-    local lowGroup, highGroup = {}, {}
-
-    for _, target in ipairs(foundTargets) do
-        local gen = parseGen(target.generation)
-        if gen then
-            if gen >= 10 then
-                table.insert(highGroup, target)
-            elseif gen > 0 and gen < 10 then
-                table.insert(lowGroup, target)
-            end
+    -- 🎯 Tạo danh sách target với generation
+    local targetList = ''
+    for i, target in ipairs(foundTargets) do
+        local targetName = target.name or 'Unknown'
+        local generation = target.generation or 'N/A'
+        targetList = targetList
+            .. '✅ '
+            .. targetName
+            .. ' [ '
+            .. generation
+            .. ']'
+        if i < #foundTargets then
+            targetList = targetList .. '\n'
         end
     end
 
-    ----------------------------------------------------------
-    -- ⚙️ Hàm gửi payload (form giữ nguyên)
-    ----------------------------------------------------------
-    local function sendToUrls(urlGroup, targetList, title)
-        local payload = {
-            ['embeds'] = {
-                {
-                    ['title'] = title,
-                    ['description'] = targetList,
-                    ['color'] = 0x00FF00,
-                    ['fields'] = {
-                        {
-                            ['name'] = '👥 Players',
-                            ['value'] = tostring(#Players:GetPlayers())
-                                .. ' / '
-                                .. tostring(Players.MaxPlayers),
-                            ['inline'] = true,
-                        },
-                        {
-                            ['name'] = '🆔 JobId',
-                            ['value'] = '`' .. jobId .. '`',
-                            ['inline'] = false,
-                        },
-                        {
-                            ['name'] = '🌐 Join Link',
-                            ['value'] = '[Join Server](' .. joinLink .. ')',
-                            ['inline'] = false,
-                        },
-                        {
-                            ['name'] = '📜 Join Script',
-                            ['value'] = '```lua\n' .. joinScript .. '\n```',
-                            ['inline'] = false,
-                        },
+    local payload = {
+        ['embeds'] = {
+            {
+                ['title'] = '🎯 Target Detected!',
+                ['description'] = targetList,
+                ['color'] = 0x00FF00,
+                ['fields'] = {
+                    {
+                        ['name'] = '👥 Players',
+                        ['value'] = tostring(#Players:GetPlayers())
+                            .. ' / '
+                            .. tostring(Players.MaxPlayers),
+                        ['inline'] = true,
                     },
-                    ['footer'] = {
-                        ['text'] = 'Spyder Scanner | User: ' .. Players.LocalPlayer.Name,
+                    {
+                        ['name'] = '🆔 JobId',
+                        ['value'] = '`' .. jobId .. '`',
+                        ['inline'] = false,
                     },
-                    ['timestamp'] = DateTime.now():ToIsoDate(),
+                    {
+                        ['name'] = '🌐 Join Link',
+                        ['value'] = '[Join Server](' .. joinLink .. ')',
+                        ['inline'] = false,
+                    },
+                    {
+                        ['name'] = '📜 Join Script',
+                        ['value'] = '```lua\n' .. joinScript .. '\n```',
+                        ['inline'] = false,
+                    },
                 },
+                ['footer'] = {
+                    ['text'] = 'Spyder Scanner | User: '
+                        .. Players.LocalPlayer.Name,
+                },
+                ['timestamp'] = DateTime.now():ToIsoDate(),
             },
-        }
+        },
+    }
 
-        print('📤 [WEBHOOK] Đang gửi webhook...')
-        for _, url in ipairs(urlGroup) do
-            task.spawn(function()
-                local success, result = pcall(function()
-                    local response = http_request({
-                        Url = url,
-                        Method = 'POST',
-                        Headers = { ['Content-Type'] = 'application/json' },
-                        Body = HttpService:JSONEncode(payload),
-                    })
-                    return response
-                end)
-                if success then
-                    print('✅ [WEBHOOK] Gửi thành công →', url)
-                else
-                    print('❌ [WEBHOOK] Lỗi:', url, tostring(result))
-                end
-            end)
+    print('📤 [WEBHOOK] Đang gửi webhook...')
+
+for _, url in ipairs(urls) do
+    local success, result = pcall(function()
+        local response = http_request({
+            Url = url,
+            Method = 'POST',
+            Headers = { ['Content-Type'] = 'application/json' },
+            Body = HttpService:JSONEncode(payload),
+        })
+        return response
+    end)
+
+    if success then
+        print('✅ [WEBHOOK] Gửi thành công →', url)
+    else
+        print('❌ [WEBHOOK] Lỗi:', url, tostring(result))
+    end
+end
+
+    -- Log target name với generation
+    local logTargets = ''
+    for i, target in ipairs(foundTargets) do
+        logTargets = logTargets
+            .. target.name
+            .. ' ['
+            .. target.generation
+            .. ']'
+        if i < #foundTargets then
+            logTargets = logTargets .. ', '
         end
     end
-
-    ----------------------------------------------------------
-    -- 🧾 TẠO DANH SÁCH VÀ GỬI RIÊNG BIỆT
-    ----------------------------------------------------------
-    if #lowGroup > 0 then
-        local list = ''
-        for i, t in ipairs(lowGroup) do
-            list = list .. '✅ ' .. (t.name or "Unknown") .. ' [ ' .. (t.generation or "N/A") .. ' ]'
-            if i < #lowGroup then list = list .. '\n' end
-        end
-        print('📊 Gửi nhóm 1–9M ('..#lowGroup..') target → 2 webhook.')
-        sendToUrls(urls.low, list, '🎯 Target 1–9M Detected')
-    end
-
-    if #highGroup > 0 then
-        local list = ''
-        for i, t in ipairs(highGroup) do
-            list = list .. '💎 ' .. (t.name or "Unknown") .. ' [ ' .. (t.generation or "N/A") .. ' ]'
-            if i < #highGroup then list = list .. '\n' end
-        end
-        task.delay(0.3, function()
-            print('💎 Gửi nhóm 10M+ ('..#highGroup..') target → 2 webhook.')
-            sendToUrls(urls.high, list, '💎 Target 10M+ Detected')
-        end)
-    end
+    print('✅ Phát hiện target:', logTargets)
 end
 
 --==================================================
