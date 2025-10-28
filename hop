@@ -275,100 +275,97 @@ local function sendWebhook(foundTargets)
     local joinLink = 'https://chillihub1.github.io/chillihub-joiner/?placeId='..placeId..'&gameInstanceId='..jobId
 
     -- 🎯 Chia nhóm theo generation
-    local lowGroup, highGroup = {}, {}
-    for _, target in ipairs(foundTargets) do
-        local gen = tonumber(target.generation:match("%d+")) or 0
-        if gen >= 10 then
-            table.insert(highGroup, target)
-        elseif gen > 0 then
-            table.insert(lowGroup, target)
-        end
+local lowGroup, highGroup = {}, {}
+for _, target in ipairs(foundTargets) do
+    local gen = tonumber(target.generation:match("%d+")) or 0
+    if gen >= 10 then
+        table.insert(highGroup, target)
+    elseif gen > 0 then
+        table.insert(lowGroup, target)
     end
+end
 
-    -- ⚙️ Hàm gửi payload (giữ nguyên form bạn có)
-    local function sendToUrls(urlGroup, targetList)
-        local payload = {
-            ['embeds'] = {
-                {
-                    ['title'] = '🎯 Target Detected!',
-                    ['description'] = targetList,
-                    ['color'] = 0x00FF00,
-                    ['fields'] = {
-                        {
-                            ['name'] = '👥 Players',
-                            ['value'] = tostring(#Players:GetPlayers())
-                                .. ' / '
-                                .. tostring(Players.MaxPlayers),
-                            ['inline'] = true,
-                        },
-                        {
-                            ['name'] = '🆔 JobId',
-                            ['value'] = '`' .. jobId .. '`',
-                            ['inline'] = false,
-                        },
-                        {
-                            ['name'] = '🌐 Join Link',
-                            ['value'] = '[Join Server](' .. joinLink .. ')',
-                            ['inline'] = false,
-                        },
-                        {
-                            ['name'] = '📜 Join Script',
-                            ['value'] = '```lua\n' .. joinScript .. '\n```',
-                            ['inline'] = false,
-                        },
+-- ⚙️ Hàm gửi payload (giữ nguyên form gốc)
+local function sendToUrls(urlGroup, titleText, targetList)
+    local payload = {
+        ['embeds'] = {
+            {
+                ['title'] = titleText,
+                ['description'] = targetList,
+                ['color'] = 0x00FF00,
+                ['fields'] = {
+                    {
+                        ['name'] = '👥 Players',
+                        ['value'] = tostring(#Players:GetPlayers())
+                            .. ' / '
+                            .. tostring(Players.MaxPlayers),
+                        ['inline'] = true,
                     },
-                    ['footer'] = {
-                        ['text'] = 'Spyder Scanner | User: ' .. Players.LocalPlayer.Name,
+                    {
+                        ['name'] = '🆔 JobId',
+                        ['value'] = '`' .. jobId .. '`',
+                        ['inline'] = false,
                     },
-                    ['timestamp'] = DateTime.now():ToIsoDate(),
+                    {
+                        ['name'] = '🌐 Join Link',
+                        ['value'] = '[Join Server](' .. joinLink .. ')',
+                        ['inline'] = false,
+                    },
+                    {
+                        ['name'] = '📜 Join Script',
+                        ['value'] = '```lua\n' .. joinScript .. '\n```',
+                        ['inline'] = false,
+                    },
                 },
+                ['footer'] = {
+                    ['text'] = 'Spyder Scanner | User: ' .. Players.LocalPlayer.Name,
+                },
+                ['timestamp'] = DateTime.now():ToIsoDate(),
             },
-        }
+        },
+    }
 
-        print('📤 [WEBHOOK] Đang gửi webhook...')
-        for _, url in ipairs(urlGroup) do
-            task.spawn(function()
-                local success, result = pcall(function()
-                    local response = http_request({
-                        Url = url,
-                        Method = 'POST',
-                        Headers = { ['Content-Type'] = 'application/json' },
-                        Body = HttpService:JSONEncode(payload),
-                    })
-                    return response
-                end)
-                if success then
-                    print('✅ [WEBHOOK] Gửi thành công →', url)
-                else
-                    print('❌ [WEBHOOK] Lỗi:', url, tostring(result))
-                end
+    print('📤 [WEBHOOK] Đang gửi:', titleText)
+    for i, url in ipairs(urlGroup) do
+        task.delay(0.3 * (i - 1), function()
+            local success, result = pcall(function()
+                return http_request({
+                    Url = url,
+                    Method = 'POST',
+                    Headers = { ['Content-Type'] = 'application/json' },
+                    Body = HttpService:JSONEncode(payload),
+                })
             end)
-        end
-    end
-
-    -- 🎯 Tạo danh sách target + gửi
-    if #lowGroup > 0 then
-        local list = ''
-        for i, t in ipairs(lowGroup) do
-            list = list .. '✅ ' .. t.name .. ' [ ' .. t.generation .. ']'
-            if i < #lowGroup then list = list .. '\n' end
-        end
-        print('📊 Gửi nhóm 1–9M ('..#lowGroup..') target → 2 webhook.')
-        sendToUrls(urls.low, list)
-    end
-
-    if #highGroup > 0 then
-        local list = ''
-        for i, t in ipairs(highGroup) do
-            list = list .. '✅ ' .. t.name .. ' [ ' .. t.generation .. ']'
-            if i < #highGroup then list = list .. '\n' end
-        end
-        task.delay(0.3, function()
-            print('💎 Gửi nhóm 10M+ ('..#highGroup..') target → 2 webhook.')
-            sendToUrls(urls.high, list)
+            if success then
+                print('✅ [WEBHOOK] Gửi thành công →', url)
+            else
+                print('❌ [WEBHOOK] Lỗi gửi:', url, tostring(result))
+            end
         end)
     end
 end
+
+-- 🎯 Gửi từng nhóm riêng biệt
+if #lowGroup > 0 then
+    local list = ''
+    for i, t in ipairs(lowGroup) do
+        list = list .. '✅ ' .. t.name .. ' [ ' .. t.generation .. ' ]'
+        if i < #lowGroup then list = list .. '\n' end
+    end
+    sendToUrls(urls.low, '🎯 Target 1–9M Detected', list)
+end
+
+if #highGroup > 0 then
+    local list = ''
+    for i, t in ipairs(highGroup) do
+        list = list .. '💎 ' .. t.name .. ' [ ' .. t.generation .. ' ]'
+        if i < #highGroup then list = list .. '\n' end
+    end
+    task.delay(0.5, function()
+        sendToUrls(urls.high, '💎 Target 10M+ Detected', list)
+    end)
+end
+
 
 --==================================================
 -- CHECK TARGETS + LOOP
