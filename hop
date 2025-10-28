@@ -240,10 +240,6 @@ local targets = {
     'Chillin Chili','Los Combinasionas','Los Hotspotsitos','La Supreme Combinasion',
     'Los 67','La Secret Combinasion','Burguro And Fryuro','La Spooky Grande','Los Mobilis',
     'Eviledon','Spooky and Pumpky','Mieteteira Bicicleteira','Los Spooky Combinasionas','Meowl',
-    'Los Matteos','Bisonte Giuppitere','La Vacca Saturno Saturnita','Torrtuginni Dragonfrutini',
-    'Los Tralaleritos','Los Spyderinis','Las Tralaleritas','Job Job Job Sahur','Noo my examine',
-    'Las Vaquitas Saturnitas','To to to Sahur',
-
 }
 
 --==================================================
@@ -263,6 +259,18 @@ local urls = {
 local http_request = http_request or request or (syn and syn.request)
 local lastJobIdSent = nil
 
+-- 🧩 Hàm chuẩn hóa generation để nhận cả G10 / 10m / gen 10 / generation 9...
+local function parseGen(gText)
+    if not gText or gText == "" then return nil end
+    local s = string.lower(gText)
+    local m = s:match("(%d+)%s*m%+?") or s:match("g(%d+)") or s:match("gen%s*(%d+)")
+        or s:match("generation%s*(%d+)") or s:match("tier%s*(%d+)")
+    if m then return tonumber(m) end
+    local any = s:match("(%d+)")
+    if any then return tonumber(any) end
+    return nil
+end
+
 local function sendWebhook(foundTargets)
     if not foundTargets or #foundTargets == 0 then return end
 
@@ -274,98 +282,110 @@ local function sendWebhook(foundTargets)
     local joinScript = "game:GetService('TeleportService'):TeleportToPlaceInstance("..placeId..", '"..jobId.."', game.Players.LocalPlayer)"
     local joinLink = 'https://chillihub1.github.io/chillihub-joiner/?placeId='..placeId..'&gameInstanceId='..jobId
 
-    -- 🎯 Chia nhóm theo generation
-local lowGroup, highGroup = {}, {}
-for _, target in ipairs(foundTargets) do
-    local gen = tonumber(target.generation:match("%d+")) or 0
-    if gen >= 10 then
-        table.insert(highGroup, target)
-    elseif gen > 0 then
-        table.insert(lowGroup, target)
-    end
-end
+    ----------------------------------------------------------
+    -- 🎯 TÁCH NHÓM CHUẨN (1–9M vs 10M+ hoàn toàn riêng biệt)
+    ----------------------------------------------------------
+    local lowGroup, highGroup = {}, {}
 
--- ⚙️ Hàm gửi payload (giữ nguyên form gốc)
-local function sendToUrls(urlGroup, titleText, targetList)
-    local payload = {
-        ['embeds'] = {
-            {
-                ['title'] = titleText,
-                ['description'] = targetList,
-                ['color'] = 0x00FF00,
-                ['fields'] = {
-                    {
-                        ['name'] = '👥 Players',
-                        ['value'] = tostring(#Players:GetPlayers())
-                            .. ' / '
-                            .. tostring(Players.MaxPlayers),
-                        ['inline'] = true,
-                    },
-                    {
-                        ['name'] = '🆔 JobId',
-                        ['value'] = '`' .. jobId .. '`',
-                        ['inline'] = false,
-                    },
-                    {
-                        ['name'] = '🌐 Join Link',
-                        ['value'] = '[Join Server](' .. joinLink .. ')',
-                        ['inline'] = false,
-                    },
-                    {
-                        ['name'] = '📜 Join Script',
-                        ['value'] = '```lua\n' .. joinScript .. '\n```',
-                        ['inline'] = false,
-                    },
-                },
-                ['footer'] = {
-                    ['text'] = 'Spyder Scanner | User: ' .. Players.LocalPlayer.Name,
-                },
-                ['timestamp'] = DateTime.now():ToIsoDate(),
-            },
-        },
-    }
-
-    print('📤 [WEBHOOK] Đang gửi:', titleText)
-    for i, url in ipairs(urlGroup) do
-        task.delay(0.3 * (i - 1), function()
-            local success, result = pcall(function()
-                return http_request({
-                    Url = url,
-                    Method = 'POST',
-                    Headers = { ['Content-Type'] = 'application/json' },
-                    Body = HttpService:JSONEncode(payload),
-                })
-            end)
-            if success then
-                print('✅ [WEBHOOK] Gửi thành công →', url)
-            else
-                print('❌ [WEBHOOK] Lỗi gửi:', url, tostring(result))
+    for _, target in ipairs(foundTargets) do
+        local gen = parseGen(target.generation)
+        if gen then
+            if gen >= 10 then
+                table.insert(highGroup, target)
+            elseif gen > 0 and gen < 10 then
+                table.insert(lowGroup, target)
             end
+        end
+    end
+
+    ----------------------------------------------------------
+    -- ⚙️ Hàm gửi payload (form giữ nguyên)
+    ----------------------------------------------------------
+    local function sendToUrls(urlGroup, targetList, title)
+        local payload = {
+            ['embeds'] = {
+                {
+                    ['title'] = title,
+                    ['description'] = targetList,
+                    ['color'] = 0x00FF00,
+                    ['fields'] = {
+                        {
+                            ['name'] = '👥 Players',
+                            ['value'] = tostring(#Players:GetPlayers())
+                                .. ' / '
+                                .. tostring(Players.MaxPlayers),
+                            ['inline'] = true,
+                        },
+                        {
+                            ['name'] = '🆔 JobId',
+                            ['value'] = '`' .. jobId .. '`',
+                            ['inline'] = false,
+                        },
+                        {
+                            ['name'] = '🌐 Join Link',
+                            ['value'] = '[Join Server](' .. joinLink .. ')',
+                            ['inline'] = false,
+                        },
+                        {
+                            ['name'] = '📜 Join Script',
+                            ['value'] = '```lua\n' .. joinScript .. '\n```',
+                            ['inline'] = false,
+                        },
+                    },
+                    ['footer'] = {
+                        ['text'] = 'Spyder Scanner | User: ' .. Players.LocalPlayer.Name,
+                    },
+                    ['timestamp'] = DateTime.now():ToIsoDate(),
+                },
+            },
+        }
+
+        print('📤 [WEBHOOK] Đang gửi webhook...')
+        for _, url in ipairs(urlGroup) do
+            task.spawn(function()
+                local success, result = pcall(function()
+                    local response = http_request({
+                        Url = url,
+                        Method = 'POST',
+                        Headers = { ['Content-Type'] = 'application/json' },
+                        Body = HttpService:JSONEncode(payload),
+                    })
+                    return response
+                end)
+                if success then
+                    print('✅ [WEBHOOK] Gửi thành công →', url)
+                else
+                    print('❌ [WEBHOOK] Lỗi:', url, tostring(result))
+                end
+            end)
+        end
+    end
+
+    ----------------------------------------------------------
+    -- 🧾 TẠO DANH SÁCH VÀ GỬI RIÊNG BIỆT
+    ----------------------------------------------------------
+    if #lowGroup > 0 then
+        local list = ''
+        for i, t in ipairs(lowGroup) do
+            list = list .. '✅ ' .. (t.name or "Unknown") .. ' [ ' .. (t.generation or "N/A") .. ' ]'
+            if i < #lowGroup then list = list .. '\n' end
+        end
+        print('📊 Gửi nhóm 1–9M ('..#lowGroup..') target → 2 webhook.')
+        sendToUrls(urls.low, list, '🎯 Target 1–9M Detected')
+    end
+
+    if #highGroup > 0 then
+        local list = ''
+        for i, t in ipairs(highGroup) do
+            list = list .. '💎 ' .. (t.name or "Unknown") .. ' [ ' .. (t.generation or "N/A") .. ' ]'
+            if i < #highGroup then list = list .. '\n' end
+        end
+        task.delay(0.3, function()
+            print('💎 Gửi nhóm 10M+ ('..#highGroup..') target → 2 webhook.')
+            sendToUrls(urls.high, list, '💎 Target 10M+ Detected')
         end)
     end
 end
-
--- 🎯 Gửi từng nhóm riêng biệt
-if #lowGroup > 0 then
-    local list = ''
-    for i, t in ipairs(lowGroup) do
-        list = list .. '✅ ' .. t.name .. ' [ ' .. t.generation .. ' ]'
-        if i < #lowGroup then list = list .. '\n' end
-    end
-    sendToUrls(urls.low, '🎯 Target 1–9M Detected', list)
-end
-
-if #highGroup > 0 then
-    local list = ''
-    for i, t in ipairs(highGroup) do
-        list = list .. '💎 ' .. t.name .. ' [ ' .. t.generation .. ' ]'
-        if i < #highGroup then list = list .. '\n' end
-    end
-    task.delay(0.5, function()
-        sendToUrls(urls.high, '💎 Target 10M+ Detected', list)
-    end)
-end
-
 
 --==================================================
 -- CHECK TARGETS + LOOP
@@ -374,15 +394,14 @@ local function checkTargets()
     local foundTargets = {}
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA('TextLabel') and obj.Name == 'DisplayName' then
-            -- ✅ Ưu tiên lấy Text trước, nếu rỗng mới dùng LocalizedText
-            local txt = string.lower(obj.Text or obj.LocalizedText or "")
+            local txt = string.lower(obj.LocalizedText or '')
 
-            if string.upper(obj.Text or obj.LocalizedText or "") == 'FUSING' then
+            if string.upper(obj.LocalizedText or '') == 'FUSING' then
                 continue
             end
 
             for _, name in ipairs(targets) do
-                if txt:find(string.lower(name)) then
+                if string.find(txt, string.lower(name)) then
                     local parent = obj.Parent
                     local isStolen = false
                     local generation = 'N/A'
@@ -390,7 +409,7 @@ local function checkTargets()
                     if parent then
                         local stolenLabel = parent:FindFirstChild('Stolen')
                         if stolenLabel and stolenLabel:IsA('TextLabel') then
-                            local stolenText = string.upper(stolenLabel.Text or stolenLabel.LocalizedText or '')
+                            local stolenText = string.upper(stolenLabel.LocalizedText or '')
                             if stolenText == 'FUSING' then
                                 isStolen = true
                             end
@@ -399,7 +418,7 @@ local function checkTargets()
                         for _, child in ipairs(parent:GetChildren()) do
                             if child:IsA('TextLabel') then
                                 local childName = string.lower(child.Name or '')
-                                local childText = child.Text or child.LocalizedText or ''
+                                local childText = child.LocalizedText or ''
 
                                 if childName:find('generation') or childName:find('gen') then
                                     generation = childText ~= '' and childText or generation
