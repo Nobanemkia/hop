@@ -265,13 +265,13 @@ local targets = {
     'Strawberry Elephant','Chicleteira Bicicleteira','Los Chicleteiras',
     'La Grande Combinasion','Nuclearo Dinossauro','Esok Sekolah','Ketupat Kepat',
     'Money Money Puggy','Tictac Sahur','Ketchuru and Musturu','Garama and Madundung',
-    'Spaghetti Tualetti','Dragon Cannelloni','67','Mariachi Corazoni','Tacorita Bicicleta',
-    'La Extinct Grande','Los Nooo My Hotspotsitos','Las Sis',
+    'Spaghetti Tualetti','Dragon Cannelloni','67','Tacorita Bicicleta',
+    'La Extinct Grande','Las Sis',
     'Celularcini Viciosini','Los Bros','Tralaledon','Los Tacoritas','Los Primos',
     'Chillin Chili','Los Combinasionas','Los Hotspotsitos','La Supreme Combinasion',
     'Los 67','La Secret Combinasion','Burguro And Fryuro','La Spooky Grande','Los Mobilis',
     'Eviledon','Spooky and Pumpky','Mieteteira Bicicleteira','Los Spooky Combinasionas','Meowl',
-    'Quesadilla Crocodila','Burrito Bandito','La Taco Combinasion',
+    'La Taco Combinasion',
 }
 
 --==================================================
