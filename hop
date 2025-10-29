@@ -365,7 +365,6 @@ local function sendWebhook(foundTargets)
 
     print('📤 [WEBHOOK] Đang gửi webhook...')
 
-for _, url in ipairs(urls) do
     local success, result = pcall(function()
         local response = http_request({
             Url = url,
@@ -377,11 +376,10 @@ for _, url in ipairs(urls) do
     end)
 
     if success then
-        print('✅ [WEBHOOK] Gửi thành công →', url)
+        print('✅ [WEBHOOK] Gửi thành công!')
     else
-        print('❌ [WEBHOOK] Lỗi:', url, tostring(result))
+        print('❌ [WEBHOOK] Lỗi:', tostring(result))
     end
-end
 
     -- Log target name với generation
     local logTargets = ''
