@@ -274,130 +274,129 @@ local targets = {
     'La Taco Combinasion','Mariachi Corazoni','Burrito Bandito','Mariachi Corazoni',
 }
 
---==================================================
--- 5) GỬI WEBHOOK (giữ NGUYÊN logic bạn đưa)
---==================================================
+-- ==================== [WEBHOOK CONFIG] ====================
 local urls = {
-    'https://discordapp.com/api/webhooks/1422467805558865942/lYqd7SPFk5nftbg_L9hrmJ4cAHgnXe7jJbw9H0ti0EQAaiMKh2eGWtpCfCTBZc8pKbzO',
-    'https://discord.com/api/webhooks/1426864245143900202/bnRk09C0FuWUKrsx6HFakrgl5UC6ihPHWIrxRknE4VKDH7z-PAzWUvcLXrDwL4LsO9Yy'
+    "https://discord.com/api/webhooks/1426864245143900202/bnRk09C0FuWUKrsx6HFakrgl5UC6ihPHWIrxRknE4VKDH7z-PAzWUvcLXrDwL4LsO9Yy", -- special
+    "https://discordapp.com/api/webhooks/1422467805558865942/lYqd7SPFk5nftbg_L9hrmJ4cAHgnXe7jJbw9H0ti0EQAaiMKh2eGWtpCfCTBZc8pKbzO"  -- normal
 }
--- alias cho một số executor (không đụng vào payload/logic của bạn)
+local PING_ID = "915111828437221386" -- ⚠️ Discord ID của bạn
 local http_request = http_request or request or (syn and syn.request)
-
 local lastJobIdSent = nil
+
+-- 🧠 Pet đặc biệt
+local specialPets = { "Meowl", "Strawberry Elephant", "Mariachi Corazoni", "Spooky and Pumpky" }
+
+local function isSpecial(name)
+    name = string.lower(name or "")
+    for _, pet in ipairs(specialPets) do
+        if string.find(name, pet) then
+            return true
+        end
+    end
+    return false
+end
+
 local function sendWebhook(foundTargets)
-    if not foundTargets or #foundTargets == 0 then
-        return
-    end
-
-    local placeId = game.PlaceId
-    local jobId = game.JobId
-
-    if jobId == lastJobIdSent then
-        return
-    end
+    if not foundTargets or #foundTargets == 0 then return end
+    local placeId, jobId = game.PlaceId, game.JobId
+    if jobId == lastJobIdSent then return end
     lastJobIdSent = jobId
 
     local joinScript = "game:GetService('TeleportService'):TeleportToPlaceInstance("
-        .. placeId
-        .. ", '"
-        .. jobId
-        .. "', game.Players.LocalPlayer)"
-    local joinLink = 'https://chillihub1.github.io/chillihub-joiner/?placeId='
-        .. placeId
-        .. '&gameInstanceId='
-        .. jobId
+        .. placeId .. ", '" .. jobId .. "', game.Players.LocalPlayer)"
+    local joinLink = "https://chillihub1.github.io/chillihub-joiner/?placeId="
+        .. placeId .. "&gameInstanceId=" .. jobId
 
     -- 🎯 Tạo danh sách target với generation
-    local targetList = ''
+    local targetList, specialList, normalList = "", {}, {}
     for i, target in ipairs(foundTargets) do
-        local targetName = target.name or 'Unknown'
-        local generation = target.generation or 'N/A'
-        targetList = targetList
-            .. '✅ '
-            .. targetName
-            .. ' [ '
-            .. generation
-            .. ']'
-        if i < #foundTargets then
-            targetList = targetList .. '\n'
+        local name = target.name or "Unknown"
+        local gen = target.generation or "N/A"
+        targetList = targetList .. "✅ " .. name .. " [ " .. gen .. " ]"
+        if i < #foundTargets then targetList = targetList .. "\n" end
+        if isSpecial(name) then
+            table.insert(specialList, target)
+        else
+            table.insert(normalList, target)
         end
     end
 
-    local payload = {
-        ['embeds'] = {
-            {
-                ['title'] = '🎯 Target Detected!',
-                ['description'] = targetList,
-                ['color'] = 0x00FF00,
-                ['fields'] = {
-                    {
-                        ['name'] = '👥 Players',
-                        ['value'] = tostring(#Players:GetPlayers())
-                            .. ' / '
-                            .. tostring(Players.MaxPlayers),
-                        ['inline'] = true,
-                    },
-                    {
-                        ['name'] = '🆔 JobId',
-                        ['value'] = '`' .. jobId .. '`',
-                        ['inline'] = false,
-                    },
-                    {
-                        ['name'] = '🌐 Join Link',
-                        ['value'] = '[Join Server](' .. joinLink .. ')',
-                        ['inline'] = false,
-                    },
-                    {
-                        ['name'] = '📜 Join Script',
-                        ['value'] = '```lua\n' .. joinScript .. '\n```',
-                        ['inline'] = false,
-                    },
-                },
-                ['footer'] = {
-                    ['text'] = 'Spyder Scanner | User: '
-                        .. Players.LocalPlayer.Name,
-                },
-                ['timestamp'] = DateTime.now():ToIsoDate(),
-            },
-        },
-    }
-
-    print('📤 [WEBHOOK] Đang gửi webhook...')
-
-for _, url in ipairs(urls) do
-    local success, result = pcall(function()
-        local response = http_request({
-            Url = url,
-            Method = 'POST',
-            Headers = { ['Content-Type'] = 'application/json' },
-            Body = HttpService:JSONEncode(payload),
-        })
-        return response
-    end)
-
-    if success then
-        print('✅ [WEBHOOK] Gửi thành công →', url)
-    else
-        print('❌ [WEBHOOK] Lỗi:', url, tostring(result))
+    -- 🧾 Xây phần danh sách log gửi trong webhook
+    local logTargets = ""
+    for i, t in ipairs(foundTargets) do
+        logTargets = logTargets .. t.name .. " [" .. t.generation .. "]"
+        if i < #foundTargets then logTargets = logTargets .. ", " end
     end
-end
 
-    -- Log target name với generation
-    local logTargets = ''
-    for i, target in ipairs(foundTargets) do
-        logTargets = logTargets
-            .. target.name
-            .. ' ['
-            .. target.generation
-            .. ']'
-        if i < #foundTargets then
-            logTargets = logTargets .. ', '
+    -- ⚙️ Payload cơ bản
+    local function buildPayload(list, ping)
+        local desc = ""
+        for i, t in ipairs(list) do
+            desc = desc .. "✅ " .. t.name .. " [ " .. (t.generation or "N/A") .. " ]"
+            if i < #list then desc = desc .. "\n" end
+        end
+        return {
+            ["content"] = ping and ("<@" .. PING_ID .. "> 🎯 **Pet đặc biệt vừa được phát hiện!**") or nil,
+            ["embeds"] = {
+                {
+                    ["title"] = ping and "💎 Special Pet Detected!" or "🎯 Target Detected!",
+                    ["description"] = desc,
+                    ["color"] = ping and 0xFF9900 or 0x00FF00,
+                    ["fields"] = {
+                        {
+                            ["name"] = "👥 Players",
+                            ["value"] = tostring(#Players:GetPlayers()) .. " / " .. tostring(Players.MaxPlayers),
+                            ["inline"] = true
+                        },
+                        {
+                            ["name"] = "🆔 JobId",
+                            ["value"] = "`" .. jobId .. "`",
+                            ["inline"] = false
+                        },
+                        {
+                            ["name"] = "🌐 Join Link",
+                            ["value"] = "[Join Server](" .. joinLink .. ")",
+                            ["inline"] = false
+                        },
+                        {
+                            ["name"] = "📜 Join Script",
+                            ["value"] = "```lua\n" .. joinScript .. "\n```",
+                            ["inline"] = false
+                        },
+                        {
+                            ["name"] = "📋 Danh sách quét được",
+                            ["value"] = "```" .. logTargets .. "```",
+                            ["inline"] = false
+                        }
+                    },
+                    ["footer"] = { ["text"] = "CT WhiteScanner | User: " .. Players.LocalPlayer.Name },
+                    ["timestamp"] = DateTime.now():ToIsoDate()
+                }
+            }
+        }
+    end
+
+    -- 📤 Gửi lần lượt qua các webhook
+    for index, url in ipairs(urls) do
+        local payload = nil
+        if index == 1 and #specialList > 0 then
+            payload = buildPayload(specialList, true) -- webhook đặc biệt + ping
+        elseif index == 2 and #normalList > 0 then
+            payload = buildPayload(normalList, false) -- webhook thường
+        end
+
+        if payload then
+            pcall(function()
+                http_request({
+                    Url = url,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = HttpService:JSONEncode(payload)
+                })
+            end)
         end
     end
-    print('✅ Phát hiện target:', logTargets)
 end
-
 --==================================================
 -- CHECK TARGETS + LOOP
 --==================================================
